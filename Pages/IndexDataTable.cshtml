@@ -1,0 +1,90 @@
+@page
+@model FabricDemoApp.Pages.IndexDataTableModel
+@{
+    ViewData["Title"] = "Fabric Demo - DataTable Pattern";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            @* Navigation at top *@
+            <div class="mb-3 text-center">
+                <a href="/IndexDataTable" class="btn btn-info me-2">
+                    📋 DataTable Pattern
+                </a>
+                <a href="/IndexRestApi" class="btn btn-success">
+                    ✅ REST API Version
+                </a>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-table"></i> Microsoft Fabric Connection
+                        <span class="badge bg-light text-dark ms-2">DataAdapter/DataTable</span>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @* Always show token info if available *@
+                    @if (!string.IsNullOrEmpty(Model.TokenInfo))
+                    {
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-key-fill"></i> <strong>Token Status:</strong> @Model.TokenInfo
+                            @if (!string.IsNullOrEmpty(Model.CredentialType))
+                            {
+                                <br/><strong>🔐 Auth Method:</strong> @Model.CredentialType
+                            }
+                        </div>
+                    }
+
+                    @* Show error if exists *@
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Error:</strong> @Model.ErrorMessage
+                        </div>
+                    }
+
+                    @* Show success data if no error *@
+                    @if (string.IsNullOrEmpty(Model.ErrorMessage) && !string.IsNullOrEmpty(Model.TotalNextFY))
+                    {
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle-fill"></i> Connection Successful!
+                        </div>
+
+                        <div class="result-box text-center my-4 p-4 bg-light rounded">
+                            <h5 class="text-muted">Total Rows in 'Table'</h5>
+                            <div class="result display-4 text-primary">@Model.TotalNextFY</div>
+                        </div>
+
+                        <div class="details">
+                            <h6 class="fw-bold">Connection Details:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Pattern:</strong> AdomdDataAdapter → DataTable</li>
+                                <li><strong>Token Expiration:</strong> Hardcoded +1 hour (like original code)</li>
+                                <li><strong>DAX Query:</strong> <code>ROW("TotalRows", COUNTROWS('Table'))</code></li>
+                                <li class="mt-2"><small class="text-muted">@Model.ConnectionString</small></li>
+                            </ul>
+                        </div>
+                    }
+                </div>
+                <div class="card-footer text-muted">
+                    <small>
+                        <i class="bi bi-info-circle"></i> 
+                        This page uses the DataAdapter/DataTable pattern from the shared ASP.NET Web Forms code.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .result {
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    .result-box {
+        border: 2px solid #0dcaf0;
+    }
+</style>

@@ -1,0 +1,213 @@
+@page
+@model FabricDemoApp.Pages.IndexRestApiModel
+@{
+    ViewData["Title"] = "Fabric REST API Demo";
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <style>
+        .nav-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 0 5px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .nav-btn:hover {
+            transform: translateY(-2px);
+        }
+        .nav-datatable {
+            background: #17a2b8;
+            color: white;
+        }
+        .nav-restapi {
+            background: #28a745;
+            color: white;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            white-space: pre-wrap;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .result {
+            text-align: center;
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 30px 0;
+        }
+
+        .details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        .details strong {
+            color: #333;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .badge-api {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-container">
+        <a href="/IndexDataTable" class="nav-btn nav-datatable">
+            📋 DataTable Pattern
+        </a>
+        <a href="/IndexRestApi" class="nav-btn nav-restapi">
+            ✅ REST API Version
+        </a>
+    </div>
+
+    <div class="container">
+        <h1>🔷 Microsoft Fabric Demo <span class="badge badge-api">REST API</span></h1>
+        <p class="subtitle">Connecting to Power BI via REST API</p>
+
+        <form method="post">
+            <button type="submit">🔄 Query Fabric Data</button>
+        </form>
+
+        @if (!string.IsNullOrEmpty(Model.TokenInfo))
+        {
+            <div class="status-box info">
+                <strong>🔐 Authentication:</strong><br />
+                @Model.TokenInfo
+                @if (!string.IsNullOrEmpty(Model.CredentialType))
+                {
+                    <br/><strong>📝 Method:</strong> @Model.CredentialType
+                }
+            </div>
+        }
+
+        @if (Model.IsSuccess)
+        {
+            <div class="status-box success">
+                <strong>✅ Connection Successful!</strong><br />
+                Data retrieved from Microsoft Fabric
+            </div>
+
+            <div class="result">
+                @Model.TotalNextFY
+            </div>
+
+            <div class="details">
+                <strong>Query Details:</strong><br />
+                <strong>Workspace:</strong> @Model.WorkspaceName<br />
+                <strong>Dataset:</strong> @Model.DatasetName<br />
+                <strong>Table:</strong> Table<br />
+                <strong>Method:</strong> Power BI REST API
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="status-box error">
+                <strong>❌ Error:</strong><br />
+                @Model.ErrorMessage
+            </div>
+        }
+    </div>
+</body>
+</html>

@@ -644,5 +644,101 @@ Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$WORKSPACE_ID/
 
 Happy to walk through any of this on a call. Let me know if you'd like the same pattern adapted for SHIR-less Synapse/Fabric data plane access, Azure SQL/Storage PEs, or to extend the demo with a Front Door for the public ingress side.
 
+---
+
+Happy to walk through any of this on a call. Let me know if you'd like the same pattern adapted for SHIR-less Synapse/Fabric data plane access, Azure SQL/Storage PEs, or to extend the demo with a Front Door for the public ingress side.
+
 Best,
 <Your name>
+
+The demo in this document is intentionally minimal — one VNet, one App Service, one Private Endpoint. The diagram below shows what a **production-grade version** of the same pattern looks like, as you'd deploy it for a real workload.
+
+```mermaid
+flowchart TD
+    Browser(["🌐 Browser"])
+
+    subgraph Ingress["Public Ingress"]
+        FrontDoor["Azure Front Door\n(WAF, global load balancing)"]
+        IngressPE["Private Link\n(Ingress Subnet)"]
+    end
+
+    subgraph SpokeVNet["Spoke VNet"]
+        subgraph ASESubnet["ASE Subnet (App Service Plan)"]
+            Apps["360 Apps\n360 Analytics\nPtlcor App"]
+            FuncApp["Alerts Job\n(Function App / WebJob)"]
+            ASP["App Service Plans"]
+        end
+
+        subgraph IntSubnet["App Service Integration Subnet\n(VNet outbound)"]
+        end
+
+        subgraph PLSubnet["Private Link Subnet"]
+            PE_KV["Private Endpoint\n→ Key Vault"]
+            PE_Fabric["Private Endpoint\n→ Fabric / Power BI"]
+            PE_ADLS["Private Endpoint\n→ Data Lake Storage Gen2"]
+            PE_AI["Private Endpoint\n→ Application Insights"]
+        end
+    end
+
+    subgraph HubVNet["Hub VNet (peered)"]
+        subgraph FWSubnet["Firewall Subnet"]
+            Firewall["Azure Firewall\n(egress inspection)"]
+        end
+        Monitor["Azure Monitor"]
+        EntraID["Entra ID"]
+        LogAnalytics["Log Analytics"]
+    end
+
+    subgraph FabricTenant["Microsoft Fabric (tenant-scoped)"]
+        Lakehouse["Lakehouse / Warehouse"]
+        SemanticModels["Semantic Models"]
+        FabricSQL["Fabric SQL DB"]
+    end
+
+    KeyVault["Azure Key Vault\n(secrets, certs)"]
+    ADLS["Data Lake Storage Gen2"]
+    AppInsights["Application Insights"]
+
+    Browser -->|"HTTPS"| FrontDoor
+    FrontDoor -->|"Private ingress"| IngressPE
+    IngressPE --> Apps
+    Apps --> IntSubnet
+    FuncApp --> IntSubnet
+    IntSubnet --> PE_KV & PE_Fabric & PE_ADLS & PE_AI
+    PE_KV -->|"Private Link"| KeyVault
+    PE_Fabric -->|"Private Link"| SemanticModels & Lakehouse & FabricSQL
+    PE_ADLS -->|"Private Link"| ADLS
+    PE_AI -->|"Private Link"| AppInsights
+    SpokeVNet <-->|"VNet Peering"| HubVNet
+    IntSubnet -->|"Egress via firewall"| Firewall
+```
+
+### How this extends the demo pattern
+
+| Component | Demo (this doc) | Production |
+|---|---|---|
+| **Public ingress** | Direct to App Service | Azure Front Door with WAF in front |
+| **App Service** | Single web app | Multiple apps + Function Apps in dedicated ASE subnet |
+| **Private Endpoints** | 1 (Fabric only) | 4+ (Fabric, Key Vault, ADLS, App Insights) |
+| **Fabric access** | Semantic model via XMLA + REST | Semantic models + Lakehouse + Fabric SQL DB |
+| **Secrets** | `appsettings.json` | Key Vault via Private Endpoint |
+| **Observability** | None | Application Insights + Log Analytics via Private Link |
+| **Egress control** | `vnetRouteAllEnabled` only | Azure Firewall in Hub VNet via peering |
+| **Identity** | System-assigned MI | System-assigned MI (same pattern, scales) |
+| **Networking** | Single spoke VNet | Hub-and-spoke with firewall, peering, DNS forwarding |
+
+### Key design decisions explained
+
+**Front Door → Private Link ingress:** Public traffic hits Front Door (which provides WAF, DDoS, global anycast). Front Door uses a Private Link origin to reach the App Service without the App Service having a public inbound IP at all.
+
+**Hub-and-spoke with firewall:** All outbound traffic from the App Service integration subnet routes through the Hub VNet's Azure Firewall. The firewall enforces an allowlist of FQDNs (Fabric endpoints, Azure services) and blocks everything else — defense-in-depth on top of the Private Endpoints.
+
+**Four Private Endpoints in the PE subnet:** The same `snet-pe` pattern from the demo is extended with additional endpoints:
+- `pe-keyvault` — app reads connection strings and certs from Key Vault without internet exposure
+- `pe-fabric` — same as the demo, for Power BI / Fabric APIs (XMLA + REST + OneLake)
+- `pe-adls` — direct OneLake / ADLS Gen2 access for bulk data operations
+- `pe-appinsights` — telemetry goes over Private Link, not public Application Insights ingestion endpoint
+
+**Peering to Hub VNet:** DNS forwarding rules in the Hub resolve `privatelink.*` zones back to the Spoke's Private DNS zones. Centralised DNS management for enterprise environments with multiple spokes.
+
+---

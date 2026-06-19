@@ -1,0 +1,18 @@
+{
+  "location": "westus2",
+  "properties": {
+    "subnet": {
+      "id": "/subscriptions/6dad7b6f-2e7c-4911-aa3e-2ac5885ee0e8/resourceGroups/rg-test-group/providers/Microsoft.Network/virtualNetworks/vnet-fabric-demo/subnets/snet-pe"
+    },
+    "manualPrivateLinkServiceConnections": [
+      {
+        "name": "fabric-conn",
+        "properties": {
+          "privateLinkServiceId": "/providers/Microsoft.PowerBI/privateLinkServicesForPowerBI/c535e8b7-9ab5-4ff9-870c-0d95cb4cb1c6",
+          "groupIds": [ "tenant" ],
+          "requestMessage": "Fabric PE for 360-app-fabric-demo"
+        }
+      }
+    ]
+  }
+}

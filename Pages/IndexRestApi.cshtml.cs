@@ -1,16 +1,18 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Options;
 using Azure.Identity;
 using Azure.Core;
 using System.Text;
 using System.Text.Json;
+using FabricDemoApp.Configuration;
 
 namespace FabricDemoApp.Pages
 {
     public class IndexRestApiModel : PageModel
     {
-        private readonly IConfiguration _configuration;
         private readonly ILogger<IndexRestApiModel> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly FabricOptions _fabric;
 
         public string WorkspaceName { get; set; } = string.Empty;
         public string DatasetName { get; set; } = string.Empty;
@@ -20,11 +22,14 @@ namespace FabricDemoApp.Pages
         public string ErrorMessage { get; set; } = string.Empty;
         public bool IsSuccess { get; set; } = false;
 
-        public IndexRestApiModel(IConfiguration configuration, ILogger<IndexRestApiModel> logger, IHttpClientFactory httpClientFactory)
+        public IndexRestApiModel(
+            ILogger<IndexRestApiModel> logger,
+            IHttpClientFactory httpClientFactory,
+            IOptions<FabricOptions> fabricOptions)
         {
-            _configuration = configuration;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
+            _fabric = fabricOptions.Value;
         }
 
         public async Task OnGet()
@@ -39,8 +44,7 @@ namespace FabricDemoApp.Pages
 
         private async Task<(string token, string credType)> GetFabricTokenAsync()
         {
-            var tokenRequestContext = new TokenRequestContext(
-                new[] { "https://analysis.windows.net/powerbi/api/.default" });
+            var tokenRequestContext = new TokenRequestContext(new[] { _fabric.TokenScope });
 
             // Try each credential type to identify which one is being used
             var credentialTypes = new (TokenCredential cred, string name)[] {
@@ -74,20 +78,20 @@ namespace FabricDemoApp.Pages
         {
             try
             {
-                // Parse workspace and dataset from configuration
-                WorkspaceName = "360_poc";
-                DatasetName = "RG_TestModel";
+                WorkspaceName = _fabric.WorkspaceName;
+                DatasetName = _fabric.DatasetName;
 
                 // Acquire Azure token
                 var (accessToken, credType) = await GetFabricTokenAsync();
                 _logger.LogInformation("Token acquired successfully using {CredType}", credType);
 
-                var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Authorization = 
+                // Named client is preconfigured (base URL + private-endpoint handler).
+                var client = _httpClientFactory.CreateClient("FabricApi");
+                client.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
                 // Get workspace ID
-                var workspacesResponse = await client.GetAsync("https://api.powerbi.com/v1.0/myorg/groups");
+                var workspacesResponse = await client.GetAsync(BuildUri("v1.0/myorg/groups"));
                 workspacesResponse.EnsureSuccessStatusCode();
                 
                 var workspacesJson = await workspacesResponse.Content.ReadAsStringAsync();
@@ -108,7 +112,8 @@ namespace FabricDemoApp.Pages
                 _logger.LogInformation("Found workspace: {WorkspaceId}", workspaceId);
 
                 // Get dataset ID
-                var datasetsResponse = await client.GetAsync($"https://api.powerbi.com/v1.0/myorg/groups/{workspaceId}/datasets");
+                var datasetsResponse = await client.GetAsync(
+                    BuildUri($"v1.0/myorg/groups/{workspaceId}/datasets"));
                 datasetsResponse.EnsureSuccessStatusCode();
                 
                 var datasetsJson = await datasetsResponse.Content.ReadAsStringAsync();
@@ -142,7 +147,7 @@ namespace FabricDemoApp.Pages
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 var queryResponse = await client.PostAsync(
-                    $"https://api.powerbi.com/v1.0/myorg/groups/{workspaceId}/datasets/{datasetId}/executeQueries",
+                    BuildUri($"v1.0/myorg/groups/{workspaceId}/datasets/{datasetId}/executeQueries"),
                     content);
 
                 if (!queryResponse.IsSuccessStatusCode)
@@ -183,6 +188,24 @@ namespace FabricDemoApp.Pages
                 ErrorMessage = $"{ex.GetType().Name}: {ex.Message}";
                 _logger.LogError(ex, "Error loading Fabric data");
             }
+        }
+
+        /// <summary>
+        /// Builds the request URI. When PrivateEndpoint.OverrideHost is set
+        /// (e.g. "api.privatelink.analysis.windows.net") the request is sent
+        /// to that host instead of the public api.powerbi.com.
+        /// </summary>
+        private Uri BuildUri(string relativePath)
+        {
+            var pe = _fabric.PrivateEndpoint;
+            if (pe.Enabled && !string.IsNullOrWhiteSpace(pe.OverrideHost))
+            {
+                var baseUri = new Uri(_fabric.ApiBaseUrl);
+                var builder = new UriBuilder(baseUri) { Host = pe.OverrideHost };
+                return new Uri(builder.Uri, relativePath);
+            }
+
+            return new Uri(relativePath, UriKind.Relative);
         }
     }
 }

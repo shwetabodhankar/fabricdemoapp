@@ -109,8 +109,11 @@ namespace FabricDemoApp.Pages
                     conn.Open();
                     _logger.LogInformation("Connection opened successfully");
 
-                    // DAX query to sum NextFY column
-                    string daxQuery = @"EVALUATE ROW(""TotalNextFY"", SUM('RnO ItemDetails'[NextFY]))";
+                    // DAX query against the model's actual 'Table'.
+                    // The semantic model has a single table named 'Table' with raw columns
+                    // Column1..Column6 (Item, Category, Region, NextFY, CurrentFY, PreviousFY).
+                    // Row 1 contains literal header text, so filter it out and cast Column4 to a number.
+                    string daxQuery = @"EVALUATE ROW(""TotalNextFY"", SUMX(FILTER('Table', NOT(ISBLANK([Column4])) && [Column4] <> ""NextFY""), VALUE([Column4])))";
                     
                     AdomdDataAdapter adapter = new AdomdDataAdapter(daxQuery, conn);
                     DataTable dt = new DataTable();
@@ -118,8 +121,8 @@ namespace FabricDemoApp.Pages
 
                     if (dt.Rows.Count > 0)
                     {
-                        // Get the value and format as currency
-                        decimal total = Convert.ToDecimal(dt.Rows[0]["TotalNextFY"]);
+                        // ADOMD wraps ROW() column names in brackets, matching the IndexDataTable page.
+                        decimal total = Convert.ToDecimal(dt.Rows[0]["[TotalNextFY]"]);
                         TotalNextFY = total.ToString("N2");
                         IsSuccess = true;
                         _logger.LogInformation("Query executed successfully. Total: {Total}", TotalNextFY);

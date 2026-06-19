@@ -644,12 +644,12 @@ Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$WORKSPACE_ID/
 
 Happy to walk through any of this on a call. Let me know if you'd like the same pattern adapted for SHIR-less Synapse/Fabric data plane access, Azure SQL/Storage PEs, or to extend the demo with a Front Door for the public ingress side.
 
----
-
-Happy to walk through any of this on a call. Let me know if you'd like the same pattern adapted for SHIR-less Synapse/Fabric data plane access, Azure SQL/Storage PEs, or to extend the demo with a Front Door for the public ingress side.
-
 Best,
 <Your name>
+
+---
+
+## 8. Production Architecture Reference
 
 The demo in this document is intentionally minimal — one VNet, one App Service, one Private Endpoint. The diagram below shows what a **production-grade version** of the same pattern looks like, as you'd deploy it for a real workload.
 
